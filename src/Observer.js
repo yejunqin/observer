@@ -23,13 +23,16 @@ export class Observer {
     this.observe(obj);
   }
   // 实现监测属性的方法
-  observe(obj) {
+  observe(obj, path) {
     if (compareType(obj, arrayType)) {
       // 如果监测对象是数组，就改写该数组的原型
-      this.overWriteArrayProto(obj);
+      this.overWriteArrayProto(obj, path);
     }
     Object.keys(obj).forEach((key) => { // 遍历对象属性
       let val = obj[key]; // 保存属性的值
+      const pathArray = path ? [...path] : [];
+      // 保存路径
+      pathArray.push(key);
       Object.defineProperty(obj, key, { // 定义get， set方法
         get: () => {
           return val;
@@ -37,22 +40,22 @@ export class Observer {
         set: newVal => {
           if (newVal !== val) {
             if (compareType(newVal, objectType) || compareType(newVal, arrayType)) { // 新值是对象的话，继续观察新值
-              this.observe(newVal);
+              this.observe(newVal, pathArray);
             }
             // 更新属性的值，调用回调函数
-            this.$callback(newVal, val);
+            this.$callback(newVal, val, pathArray);
             val = newVal;
           }
         }
       });
       // 如果属性值为对象或数组，递归调用observe方法
       if (compareType(obj[key], objectType) || compareType(obj[key], arrayType)) {
-        this.observe(obj[key]);
+        this.observe(obj[key], pathArray);
       }
     });
   }
   // 改写传入数组的原型
-  overWriteArrayProto(arr) {
+  overWriteArrayProto(arr, path) {
     // 保存原始的Array的原型
     const originArrayProto = Array.prototype;
     // 创建一个原型为Array.prototype的对象，作为传入数组的原型
@@ -70,7 +73,7 @@ export class Observer {
           // result为调用原始Array原型方法的结果
           const result = originArrayProto[method].apply(this, rest);
           // 执行回调，传入数组的新值和旧值
-          self.$callback(this, oldArray);
+          self.$callback(this, oldArray, path);
           // 返回结果
           return result;
         },
